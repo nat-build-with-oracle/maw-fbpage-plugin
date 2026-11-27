@@ -1,0 +1,17 @@
+{
+  "name": "fbpage",
+  "version": "0.1.0",
+  "entry": "./src/index.ts",
+  "sdk": "^1.0.0",
+  "target": "js",
+  "description": "Run a Facebook Page from the terminal through the Graph API: posts, comments, replies as the Page, scheduled posts, video stats. Page token from pass per call.",
+  "cli": {
+    "command": "fbpage",
+    "help": "maw fbpage info | posts | comments [--unreplied] | reply <comment_id> \"<text>\" | scheduled | stats <video_id>  — --as <page> or PAGE=<page>"
+  },
+  "capabilities": ["net:fetch", "proc:exec:pass"],
+  "weight": 0,
+  "tier": "extra",
+  "license": "MIT",
+  "schemaVersion": 1
+}
