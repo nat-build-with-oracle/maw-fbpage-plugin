@@ -33,7 +33,7 @@ maw fbpage --as yaisai stats 1234567890
 |---|---|
 | `info` | name, id, followers, likes, link |
 | `posts [--limit N]` | recent posts: Bangkok time, comment and reaction counts, first line |
-| `comments [--unreplied] [--limit N]` | viewer comments on the last N posts (default 25), `OPEN` or `replied` |
+| `comments [--unreplied] [--limit N\|--all]` | every comment on the last N posts (default 25) or all posts, replies nested under it, `PAGE` marks the Page's own, `OPEN` = viewer comment with no Page reply |
 | `reply <comment_id> "<text>" [--dry] [--force]` | reply as the Page; refuses when the Page already replied unless `--force` |
 | `scheduled` | scheduled posts, soonest first, with a count |
 | `stats <video_id>` | lifetime `video_insights` metrics |

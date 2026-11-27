@@ -2,7 +2,7 @@
 //
 //   maw fbpage info                                   name, id, followers, link
 //   maw fbpage posts [--limit N]                      recent posts: time, comments, reactions, first line
-//   maw fbpage comments [--unreplied] [--limit N]     viewer comments on the last N posts, with reply state
+//   maw fbpage comments [--unreplied] [--limit N|--all]  every comment, replies nested, PAGE marks ours
 //   maw fbpage reply <comment_id> "<text>" [--dry] [--force]
 //                                                     reply as the Page; refuses if the Page already replied
 //   maw fbpage scheduled                              scheduled posts, soonest first
@@ -23,7 +23,7 @@ const HELP = `maw fbpage — run a Facebook Page through the Graph API
 
   maw fbpage info                                  name, id, followers, link
   maw fbpage posts [--limit N]                     recent posts with comment and reaction counts
-  maw fbpage comments [--unreplied] [--limit N]    viewer comments on the last N posts (default 25)
+  maw fbpage comments [--unreplied] [--limit N|--all]  every comment on the last N posts (default 25), replies nested, PAGE marks ours
   maw fbpage reply <comment_id> "<text>" [--dry] [--force]
                                                    reply as the Page (refuses a second reply unless --force)
   maw fbpage scheduled                             scheduled posts, soonest first
@@ -42,7 +42,7 @@ export function parse(args: string[]): Opts {
     if (a === "--as") o.page = args[++i] ?? "";
     else if (a.startsWith("--as=")) o.page = a.slice(5);
     else if (a === "--pass") o.pass = args[++i] ?? "";
-    else if (a === "--limit") o.limit = Number(args[++i] ?? 25) || 25;
+    else if (a === "--limit") o.limit = Number(args[++i] ?? 25) || 25; else if (a === "--all") o.limit = 100000;
     else if (a === "--unreplied") o.unreplied = true;
     else if (a === "--dry") o.dry = true;
     else if (a === "--force") o.force = true;
@@ -84,26 +84,42 @@ async function graph(tok: string, method: "GET" | "POST", path: string, params: 
 
 const fail = (msg: string): PluginResult => ({ ok: false, error: `maw fbpage: ${msg}` });
 
+// every post (follows the "after" cursor, never prints paging URLs), every comment, replies nested under it
 async function comments(tok: string, o: Opts): Promise<string> {
-  const me = await graph(tok, "GET", "me", { fields: "id" });
-  const posts = (await graph(tok, "GET", "me/posts", {
-    fields: "id,created_time,message,comments.limit(50).summary(true){id,from,message,created_time,comments.limit(25){from}}",
-    limit: o.limit,
-  })).data ?? [];
+  const me = await graph(tok, "GET", "me", { fields: "id,name" });
+  const fields = "id,created_time,message,comments.limit(100).summary(true){id,from,message,created_time,comments.limit(100){id,from,message,created_time}}";
+  const posts: any[] = [];
+  let after = "";
+  while (posts.length < o.limit) {
+    const page = await graph(tok, "GET", "me/posts", { fields, limit: Math.min(25, o.limit - posts.length), ...(after ? { after } : {}) });
+    posts.push(...(page.data ?? []));
+    after = page.paging?.cursors?.after ?? "";
+    if (!page.paging?.next || !after) break;
+  }
+  const who = (f: any) => (f?.id === me.id ? "PAGE  " : "viewer");
   const out: string[] = [];
-  let open = 0;
+  let open = 0, viewer = 0, ours = 0;
   for (const p of posts) {
-    const cs = (p.comments?.data ?? []).filter((c: any) => c.from?.id !== me.id);
-    const rows = cs.map((c: any) => ({ c, replied: (c.comments?.data ?? []).some((r: any) => r.from?.id === me.id) }))
-      .filter((x: any) => !o.unreplied || !x.replied);
+    const cs: any[] = p.comments?.data ?? [];
+    const rows = cs.map((c) => {
+      const reps: any[] = c.comments?.data ?? [];
+      const mine = c.from?.id === me.id;
+      const replied = mine || reps.some((r) => r.from?.id === me.id);
+      return { c, reps, mine, replied };
+    }).filter((x) => !o.unreplied || !x.replied);
+    for (const x of rows) {
+      if (x.mine) ours++; else { viewer++; if (!x.replied) open++; }
+      ours += x.reps.filter((r) => r.from?.id === me.id).length;
+    }
     if (!rows.length) continue;
     out.push(`\n${bkk(p.created_time)}  ${p.id}  ${line1(p.message, 50)}`);
-    for (const { c, replied } of rows) {
-      if (!replied) open++;
-      out.push(`  ${replied ? "replied" : "OPEN   "}  ${c.id}  ${bkk(c.created_time)}  ${line1(c.message, 90)}`);
+    for (const { c, reps, mine, replied } of rows) {
+      const tag = mine ? "PAGE  " : replied ? "viewer replied" : "viewer OPEN   ";
+      out.push(`  ${tag}  ${bkk(c.created_time)}  ${c.id}\n      ${line1(c.message, 100)}`);
+      for (const r of reps) out.push(`    └ ${who(r.from)}  ${bkk(r.created_time)}  ${r.id}\n        ${line1(r.message, 100)}`);
     }
   }
-  out.push(`\n${open} unreplied viewer comment(s) on the last ${posts.length} posts`);
+  out.push(`\n${posts.length} posts · ${viewer} viewer comment(s), ${open} unreplied · ${ours} by ${me.name}`);
   return out.join("\n").trim();
 }
 
