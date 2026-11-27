@@ -109,7 +109,7 @@ async function comments(tok: string, o: Opts): Promise<string> {
 
 export async function handler(ctx: InvokeContext): Promise<PluginResult> {
   const args = ctx.source === "cli" ? (ctx.args ?? []) : [];
-  if (!args.length || ["-h", "--help", "help"].includes(args[0]!)) return { ok: true, output: HELP };
+  if (!args.length || args.some((a) => a === "-h" || a === "--help") || args[0] === "help") return { ok: true, output: HELP };
   const o = parse(args);
   if (!o.page && !o.pass) return fail("which Page? add --as <page> or PAGE=<page> (e.g. yaisai)");
   const [verb, a, b] = o.rest;

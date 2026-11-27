@@ -34,3 +34,9 @@ test("help", async () => {
   const r = await handler({ source: "cli", args: [] });
   expect(r.output).toContain("maw fbpage");
 });
+
+test("--help after --as still prints help", async () => {
+  const r = await handler({ source: "cli", args: ["--as", "yaisai", "--help"] });
+  expect(r.ok).toBe(true);
+  expect(r.output).toContain("maw fbpage");
+});
