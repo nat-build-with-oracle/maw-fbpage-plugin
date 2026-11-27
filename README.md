@@ -5,7 +5,7 @@ Run a Facebook Page from the terminal through the Graph API: posts, viewer comme
 ## Install
 
 ```
-maw plugin install PhoneBooth-project/maw-fbpage-plugin
+maw plugin install nat-build-with-oracle/maw-fbpage-plugin
 maw fbpage --help
 ```
 
@@ -63,7 +63,7 @@ The token needs `pages_read_engagement` for reading and `pages_manage_engagement
 ## Development
 
 ```
-git clone https://github.com/PhoneBooth-project/maw-fbpage-plugin
+git clone https://github.com/nat-build-with-oracle/maw-fbpage-plugin
 cd maw-fbpage-plugin
 bun test
 bun src/index.ts --as yaisai info
